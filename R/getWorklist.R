@@ -54,7 +54,6 @@ ChangeWorklist <-
 #' @description Generate Worklist for data acquisition.
 #' @author Xiaotao Shen
 #' \email{shenxt@@sioc.ac.cn}
-#' @param x batch.design file.
 #' @param instrument Which instrument you use?
 #' "Agilent" or "AB", default is "Agilent".
 #' @param name The name of worklist.
@@ -64,37 +63,26 @@ ChangeWorklist <-
 #' @param replication Replication times.
 #' @param QCstep QC step.
 #' @param conditionQCnumber Condition QC number.
+#' @param validationQCstep Validation QC step.
 #' @param testmixstep Test mixture step.
 #' @param injectionfrom Injection order from which? Default is 1.
 #' @param user Default is "other".
 #' @param dir Directory.
 #' @return New worklist.
-#' @examples
-#' \donttest{
-#' #demo data
-#' batch.design <- paste("A",c(1:100), sep = "")
-#' ##create a folder for demo
-#' dir.create("Demo")
-#' setwd("Demo")
-#' write.csv(batch.design, "batch.design.csv", row.names = FALSE)
-#'
-#' #run ChangeWorklist
-#' GetWorklist()
-#' }
+#' @export
 
 
 
 setGeneric(name = "getWorklist",
-           def = function(x = NULL,
-                          instrument = c("Agilent", "AB"),
+           def = function(instrument = c("Agilent", "AB"),
                           name = "worklist",
                           randommethod = c("no", "position", "injection"),
                           samplenumber = NULL,
                           replication = 1,
                           QCstep = 8,
                           conditionQCnumber = 10,
-                          # validationstep = 30,
-                          testmixstep = 0,
+                          validationQCstep = 40,
+                          testmixstep = 40,
                           injectionfrom = 1,
                           user = "other",
                           dir = "D:\\MassHunter\\Data\\SXT\\"){
@@ -104,15 +92,15 @@ setGeneric(name = "getWorklist",
              #names is the name of the folder,plates is the used plates,
              #if AB,dir is ""
 
+             browser()
              options(warn = -1)
              file <- dir()
 
              if (instrument == "AB") {dir = ""}
-             if (is.null(x)) {
                x <- read.csv(file[file == "batch.design.csv"],
                              check.names = FALSE,
                              stringsAsFactors = FALSE)
-             }
+
              # --------------------------------------------------------------------------
              options(warn = 0)
              x <- as.character(x[, 1])
@@ -132,14 +120,12 @@ setGeneric(name = "getWorklist",
              )
 
              # ---------------------------------------------------------------------------
-             if (is.null(samplenumber)) {samplenumber <- length(x)}
-             else {
+             if (is.null(samplenumber)) {samplenumber <- length(x)} else {
                if (samplenumber > length(x)) {
                  samplenumber <- samplenumber
                  warning("The sample number you set is larger than
                          the sample in your batch design.\n")
-               }
-               else {
+               } else {
                  samplenumber <- samplenumber
                }
 
@@ -217,7 +203,7 @@ setGeneric(name = "getWorklist",
              } else{
                x2 <- NULL
                for (i in seq_len(replication)) {
-                 x1 <- paste(x, i, sep = "_")
+                 x1 <- paste(x, i, sep = ".")
                  x2 <- cbind(x2, x1)
                }
                x <- x2
@@ -355,13 +341,14 @@ setGeneric(name = "getWorklist",
              #now x column 1 is Sample Name, column 2 is Sample Position
              if (instrument == "Agilent") {
                Blank <- c("Blank", "Vial1")
-               Test.mix <- matrix(c("Test_mix", "Vial2"), ncol = 2)
+               Test.mix <- matrix(c("Test.mix", "Vial2"), ncol = 2)
+               validationQC <- matrix(c("validationQC", "Vial3"), ncol = 2)
                QC <- c("QC", "Vial3")
                Blank.QC <- rbind(Blank, QC)
-             }
-             else {
+             } else {
                Blank <- c("Blank", "1", "52")
-               Test.mix <- c("Test_mix", "1", "53")
+               Test.mix <- c("Test.mix", "1", "53")
+               validationQC <- c("validationQC", "1", "54")
                QC <- c("QC", "1", "54")
                Blank.QC <- rbind(Blank, QC)
              }
@@ -389,11 +376,11 @@ setGeneric(name = "getWorklist",
 
              x <- rbind(x, Blank.QC)
              x <- x[-(nrow(x) - 1), ]
+
              #insert Test.mix
              if (testmixstep == 0) {
                x = x
-             }
-             else {
+             } else {
                x <-
                  lapply(seq(1, nrow(x), by = testmixstep), function(y)
                    if (y + testmixstep - 1 <= nrow(x)) {
@@ -415,6 +402,40 @@ setGeneric(name = "getWorklist",
                x <- rbind(x, Test.mix)
              }
 
+
+
+
+             #insert validation QC
+             if (validationQCstep == 0) {
+               x = x
+             } else {
+               x <-
+                 lapply(seq(1, nrow(x), by = validationQCstep), function(y)
+                   if (y + validationQCstep - 1 <= nrow(x)) {
+                     x[y:(y + validationQCstep - 1),]
+                   } else {
+                     x[y:nrow(x),]
+                   })
+
+               colnames(validationQC) <- colnames(x[[1]])
+               x <- lapply(x, function(y)
+                 rbind(validationQC, y))
+
+               x3 <- NULL
+               for (i in seq_along(x)) {
+                 x1 <- x[[i]]
+                 x3 <- rbind(x3, x1)
+               }
+               x <- x3
+               x <- rbind(x, validationQC)
+             }
+
+
+
+
+
+
+
              if (instrument == "Agilent") {
                colnames(x) <- c('Sample.Name', "Sample.Position")
                x[, 1] <- as.character(x[, 1])
@@ -427,8 +448,7 @@ setGeneric(name = "getWorklist",
                x[, 3] <- as.character(x[, 3])
              }
 
-             if (instrument == "Agilent")
-             {
+             if (instrument == "Agilent") {
                temp1 <- matrix(rep(Blank, 3), ncol = 2, byrow = TRUE)
                temp2 <- matrix(rep(QC, conditionQCnumber),
                                ncol = 2,
@@ -458,16 +478,28 @@ setGeneric(name = "getWorklist",
              x[, 1][grep("Blank", x[, 1])] <-
                paste("Blank", c(1:Blank.number), sep = "")
 
-             Test.mix.number <- length(grep("Test_mix", x[, 1]))
-             x[, 1][grep("Test_mix", x[, 1])] <-
-               paste("Test_mix", c(1:Test.mix.number), sep = "")
+             Test.mix.number <- length(grep("Test.mix", x[, 1]))
+             x[, 1][grep("Test.mix", x[, 1])] <-
+               paste("Test.mix", c(1:Test.mix.number), sep = "")
 
-             QC.number <- length(grep("QC", x[, 1]))
-             x[, 1][grep("QC", x[, 1])][1:conditionQCnumber] <-
-               paste("Condition_QC", c(1:conditionQCnumber), sep = "")
-             x[, 1][grep("QC", x[, 1])][conditionQCnumber + 1:QC.number] <-
-               paste("QC", c(1:(QC.number - conditionQCnumber)), sep = "")
+
+             validationQC.number <- length(grep("validationQC", x[, 1]))
+             x[, 1][grep("validationQC", x[, 1])] <-
+               paste("validationQC", c(1:validationQC.number), sep = "")
+
+
+             ##
+
+             QC.number <- sum(x[,1] == "QC")
+
+             x[, 1][which(x[,1] == "QC")][1:conditionQCnumber] <-
+               paste("ConditionQC", c(1:conditionQCnumber), sep = "")
+
+             x[, 1][which(x[,1] == "QC")] <-
+               paste("QC", c(1:(length(which(x[,1]=="QC")))), sep = "")
+
              first <- which(x[, 1] == "QC1")
+
              last <-
                which(x[, 1] == sprintf("QC%s", QC.number - conditionQCnumber))
 
@@ -475,28 +507,35 @@ setGeneric(name = "getWorklist",
              Data.File1 <- before.info[, 1]
 
              after.info <- x[(last + 1):nrow(x),]
-             Data.File5 <- after.info[, 1]
+             Data.File6 <- after.info[, 1]
 
              middle.info <- x[first:last, ]
              middle.info <- cbind(middle.info, c(1:nrow(middle.info)))
              Sample.QC <-
                middle.info[setdiff(1:nrow(middle.info),grep("Blank", middle.info[, 1])), ]
-             #remove Blank in middle.info
+
+              #remove Blank in middle.info
+
              Sample.QC <-
-               Sample.QC[setdiff(1:nrow(Sample.QC), grep("Test_mix", Sample.QC[, 1])), ]
-             #remove Test.mix in middle.info
+               Sample.QC[setdiff(1:nrow(Sample.QC), c(grep("Test.mix", Sample.QC[, 1]),
+                                 grep("validationQC", Sample.QC[, 1]))), ]
+             #remove Test.mix and validationQC in middle.info
 
              middle.blank <-
                middle.info[grep("Blank", middle.info[, 1]), , drop = FALSE]
+
              #column 3 is number
              middle.testmix <-
-               middle.info[grep("Test_mix", middle.info[, 1]), , drop = FALSE]
+               middle.info[grep("Test.mix", middle.info[, 1]), , drop = FALSE]
+
+             middle.validationQC <-
+               middle.info[grep("validationQC", middle.info[, 1]), , drop = FALSE]
 
              Data.File2 <-
                paste("Sample", c(injectionfrom:(nrow(Sample.QC) + injectionfrom - 1)),
                      sep = "")
 
-             Data.File2 <- paste(Data.File2, Sample.QC[, 1], sep = "_")
+             Data.File2 <- paste(Data.File2, Sample.QC[, 1], sep = ".")
 
              if (user == "other") {
                Data.File2 <- Sample.QC[, 1]
@@ -506,16 +545,18 @@ setGeneric(name = "getWorklist",
                Data.File2 <- cbind(Data.File2, Sample.QC[, 3])
                Data.File3 <- middle.blank[, c(1, 3)]
                Data.File4 <- middle.testmix[, c(1, 3)]
+               Data.File5 <- middle.validationQC[, c(1, 3)]
              }
              if (instrument == "AB") {
                Data.File2 <- cbind(Data.File2, Sample.QC[, 4])
                Data.File3 <- middle.blank[, c(1, 4)]
                Data.File4 <- middle.testmix[, c(1, 4)]
+               Data.File5 <- middle.validationQC[, c(1, 4)]
              }
 
-             colnames(Data.File4) <- colnames(Data.File3) <-
+             colnames(Data.File5) <- colnames(Data.File4) <- colnames(Data.File3) <-
                colnames(Data.File2) <- paste("test", c(1:ncol(Data.File2)))
-             Data.File2 <- rbind(Data.File2, Data.File3, Data.File4)
+             Data.File2 <- rbind(Data.File2, Data.File3, Data.File4, Data.File5, Data.File6)
              Data.File2 <- Data.File2[order(as.numeric(Data.File2[, 2])),]
              Data.File2 <- Data.File2[, -2]
 
@@ -524,11 +565,10 @@ setGeneric(name = "getWorklist",
              name.NEG <- paste(name, "NEG")
              Data.File.POS <- paste(dir, name.POS, "\\", Data.File, sep = "")
              Data.File.NEG <- paste(dir, name.NEG, "\\", Data.File, sep = "")
-             Data.File.POS <- paste(Data.File.POS, "POS", sep = "_")
-             Data.File.NEG <- paste(Data.File.NEG, "NEG", sep = "_")
+             Data.File.POS <- paste(Data.File.POS, "POS", sep = ".")
+             Data.File.NEG <- paste(Data.File.NEG, "NEG", sep = ".")
 
-             if (instrument == "Agilent")
-             {
+             if (instrument == "Agilent") {
                Data.File.POS <- paste(Data.File.POS, "d", sep = ".")
                Data.File.NEG <- paste(Data.File.NEG, "d", sep = ".")
              }
@@ -539,7 +579,7 @@ setGeneric(name = "getWorklist",
              write.csv(x.POS, sprintf("%s POS.csv", name), row.names = FALSE)
              write.csv(x.NEG, sprintf("%s NEG.csv", name), row.names = FALSE)
              cat("Worklist is generated.\n")
-             return(TRUE)
+             # return(TRUE)
 
            })
 
