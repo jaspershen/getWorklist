@@ -92,7 +92,7 @@ setGeneric(name = "getWorklist",
              #names is the name of the folder,plates is the used plates,
              #if AB,dir is ""
 
-             browser()
+             # browser()
              options(warn = -1)
              file <- dir()
 
@@ -563,6 +563,11 @@ setGeneric(name = "getWorklist",
              Data.File <- c(Data.File1, as.character(Data.File2), Data.File5)
              name.POS <- paste(name, "POS")
              name.NEG <- paste(name, "NEG")
+
+             # browser()
+             Data.File <- x
+
+
              Data.File.POS <- paste(dir, name.POS, "\\", Data.File, sep = "")
              Data.File.NEG <- paste(dir, name.NEG, "\\", Data.File, sep = "")
              Data.File.POS <- paste(Data.File.POS, "POS", sep = ".")
