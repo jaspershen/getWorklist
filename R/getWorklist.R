@@ -86,6 +86,7 @@ setGeneric(name = "getWorklist",
                           injectionfrom = 1,
                           user = "other",
                           dir = "D:\\MassHunter\\Data\\SXT\\"){
+             browser()
 
              instrument <- match.arg(instrument)
              randommethod <- match.arg(randommethod)
