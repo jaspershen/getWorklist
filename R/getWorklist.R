@@ -86,14 +86,14 @@ setGeneric(name = "getWorklist",
                           injectionfrom = 1,
                           user = "other",
                           dir = "D:\\MassHunter\\Data\\SXT\\"){
-             browser()
+
 
              instrument <- match.arg(instrument)
              randommethod <- match.arg(randommethod)
              #names is the name of the folder,plates is the used plates,
              #if AB,dir is ""
 
-             # browser()
+             #
              options(warn = -1)
              file <- dir()
 
@@ -348,11 +348,12 @@ setGeneric(name = "getWorklist",
                Blank.QC <- rbind(Blank, QC)
              } else {
                Blank <- c("Blank", "1", "52")
-               Test.mix <- c("Test.mix", "1", "53")
-               validationQC <- c("validationQC", "1", "54")
+               Test.mix <- matrix(c("Test.mix", "1", "53"), ncol = 3)
+               validationQC <- matrix(c("validationQC", "1", "54"), ncol = 3)
                QC <- c("QC", "1", "54")
                Blank.QC <- rbind(Blank, QC)
              }
+
 
              #insert Blank and QC
              x <-
@@ -389,6 +390,7 @@ setGeneric(name = "getWorklist",
                    } else {
                      x[y:nrow(x),]
                    })
+
 
                colnames(Test.mix) <- colnames(x[[1]])
                x <- lapply(x, function(y)
@@ -565,7 +567,7 @@ setGeneric(name = "getWorklist",
              name.POS <- paste(name, "POS")
              name.NEG <- paste(name, "NEG")
 
-             # browser()
+             #
              Data.File <- x
 
 
